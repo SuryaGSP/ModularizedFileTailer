@@ -1,5 +1,5 @@
-#include "../HeaderFiles/Includes.h"
-#include "../HeaderFiles/FileInfo.h"
+#include "HeaderFiles/Includes.h"
+#include "HeaderFiles/FileInfo.h"
 std::string FindType(std::string fileName)
 {
   reverse(fileName.begin(), fileName.end());

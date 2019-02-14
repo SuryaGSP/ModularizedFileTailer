@@ -1,12 +1,51 @@
-#include "../../HeaderFiles/ProcessorQueue.h"
-#include "../../HeaderFiles/DBOperations.h"
+#include "HeaderFiles/ProcessorQueue.h"
+#include "HeaderFiles/DBOperations.h"
 
 std::queue<std::string> ProcessorQueue::fileNamesToBeProcessed;
 std::map<std::string, int> ProcessorQueue::FileProcessMap;
+std::map<std::string, std::string> ProcessorQueue::fileRenameMap;
+std::queue<std::string> ProcessorQueue::renamedFileQueue;
+
 int ProcessorQueue::fileProcessMapSize;
+int ProcessorQueue::renameQueueSize;
 
 std::condition_variable ProcessorQueue::cv;
 std::mutex ProcessorQueue::mut;
+
+
+void ProcessorQueue::pushRenameQueue(std::string fileName, std::string rename)
+{
+  std::unique_lock<std::mutex> lck(mut);
+  fileRenameMap[fileName] = rename;
+  renamedFileQueue.push(fileName);
+  renameQueueSize++; 
+  ProcessorQueue::cv.notify_one();
+}
+
+
+void ProcessorQueue::readRenamedFileData(std::string fileName)
+{
+ // std::cout << " file Renamed " << fileName << " to  sdf " << fileRenameMap[fileName] << std::endl;
+ // std::cout << "reading from  " << fileRenameMap[fileName] << std::endl;
+  long long streamposInt64 = 0;
+  int skipValue = 0;
+  DBOperations::RetrieveSPosAndSkip("select streampos,skip from fileInfo where fileName = ?1", fileName, streamposInt64, skipValue);
+  std::streampos streampos = streamposInt64;
+  std::fstream inputFile;
+  std::cout << fileRenameMap[fileName] << streampos << std::endl;
+  inputFile.open(fileRenameMap[fileName],std::fstream::in);
+  inputFile.seekg(streampos);
+  std::ofstream outFile;
+  std::string curLine;
+  outFile.open("D:\\dir\\" + ProcessorQueue::FindFileName(fileName) + ".txt", std::ios_base::app);
+  outFile << fileName << skipValue << std::endl;
+  while (std::getline(inputFile, curLine))
+  {
+   // std::cout << "found one line";
+    outFile << curLine  << std::endl;
+  }
+  renameQueueSize--;
+}
 
 void ProcessorQueue::push(std::string fileName)
 {
@@ -65,22 +104,28 @@ void ProcessorQueue::WorkerThreads(int threadNo)
 {
   while (true) {
     std::unique_lock<std::mutex> lck(mut);
-    while (ProcessorQueue::fileProcessMapSize == 0)
+    while (ProcessorQueue::fileProcessMapSize == 0 && ProcessorQueue::renameQueueSize == 0)
     {
-      std::cout << threadNo << " waiting" << std::endl;
+   //   std::cout << threadNo << " waiting" << std::endl;
       cv.wait(lck);
-      std::cout << threadNo << " released" << std::endl;
+ //     std::cout << threadNo << " released" << std::endl;
     }
-    std::string curFile = "";
-    if (ProcessorQueue::fileNamesToBeProcessed.size() > 0)
+    if (ProcessorQueue::renamedFileQueue.size() > 0)
     {
+      std::string fileName = renamedFileQueue.front();
+      renamedFileQueue.pop();
+      ProcessorQueue::readRenamedFileData(fileName);
+    }
+    if(ProcessorQueue::fileNamesToBeProcessed.size() > 0)
+    {
+      std::string curFile = "";
       curFile = ProcessorQueue::fileNamesToBeProcessed.front();
-      std::cout << curFile << std::endl;
+    //  std::cout << curFile << std::endl;
       ProcessorQueue::fileNamesToBeProcessed.pop();
       lck.unlock();
-      std::cout << "TO read " << curFile << threadNo << std::endl;
+  //    std::cout << "TO read " << curFile << threadNo << std::endl;
       ProcessorQueue::ReadFile(curFile);
-      std::cout << " erased from existence " << threadNo << std::endl;
+    //  std::cout << " erased from existence " << threadNo << std::endl;
       std::unique_lock<std::mutex> lck(mut);
       if (ProcessorQueue::FileProcessMap[curFile] = 1) {
         ProcessorQueue::FileProcessMap[curFile] = 0;
@@ -98,7 +143,7 @@ void ProcessorQueue::ReadFile(std::string fileName)
   std::streampos streampos = streamposInt64;
   char *zErrMsg = 0;
   std::ifstream inputFile;
-  inputFile.open(fileName);
+  inputFile.open(fileName,std::fstream::in);
   inputFile.seekg(streampos);
   std::ofstream outFile;
   std::string curLine;
@@ -111,20 +156,20 @@ void ProcessorQueue::ReadFile(std::string fileName)
   {
     outFile << fileName << std::endl;
   }
+  std::streampos curPos;
   int recordCount = 0;
   while (inputFile.peek() != -1)
   {
-    std::streampos curPos = inputFile.tellg();
+    curPos = inputFile.tellg();
     std::getline(inputFile, curLine);
     outFile << curLine << std::endl;
     recordCount++;
     if (inputFile.peek() == -1 || recordCount >= 1000)
     {
-      recordCount = 0;
       DBOperations::UpdateQueury("update fileInfo set skip = ?1 , streampos = ?2 where fileName = ?3", curPos, 1, fileName);
+      recordCount = 0;
     }
   }
-
 }
 
 std::string ProcessorQueue::FindFileName(std::string fileName)

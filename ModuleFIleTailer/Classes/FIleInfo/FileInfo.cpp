@@ -1,6 +1,6 @@
-#include "../../HeaderFiles/FileInfo.h"
-#include "../../HeaderFiles/DBOperations.h"
-#include "../../HeaderFiles/ProcessorQueue.h"
+#include "HeaderFiles/FileInfo.h"
+#include "HeaderFiles/DBOperations.h"
+#include "HeaderFiles/ProcessorQueue.h"
 
 int FileInfo::noOfFiles = 0;
 //std::map<std::string, std::streampos> FileInfo::FilePosMap;

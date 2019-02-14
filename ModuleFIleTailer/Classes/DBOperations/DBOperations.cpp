@@ -1,4 +1,4 @@
-#include "../../HeaderFiles/DBOperations.h"
+#include "HeaderFiles/DBOperations.h"
 
 
 sqlite3 *DBOperations::DBObject = NULL;

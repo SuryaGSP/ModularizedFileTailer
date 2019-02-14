@@ -1,5 +1,5 @@
-#include "../HeaderFiles/Includes.h"
-#include "../HeaderFiles/FileInfo.h"
+#include "HeaderFiles/Includes.h"
+#include "HeaderFiles/FileInfo.h"
 
 std::string FindDir(std::string s)
 {

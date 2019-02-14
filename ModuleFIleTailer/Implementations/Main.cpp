@@ -1,8 +1,8 @@
-#include "../HeaderFiles/Includes.h"
-#include "../HeaderFiles/ProcessorQueue.h"
-#include "../HeaderFiles/DBOperations.h"
-#include "../HeaderFiles/DirectoryMonitor.h"
-#include "../HeaderFiles/FileInfo.h"
+#include "HeaderFiles/Includes.h"
+#include "HeaderFiles/ProcessorQueue.h"
+#include "HeaderFiles/DBOperations.h"
+#include "HeaderFiles/DirectoryMonitor.h"
+#include "HeaderFiles/FileInfo.h"
 void IntializeThreadPoolInFileProcessor() {
   std::thread t1[noOfThreads];
   for (int iter = 0; iter < 4; iter++)
@@ -22,19 +22,19 @@ int main()
   ProcessJSON(fileInput);
   FileInfo::UpdateDB();
   FileInfo::PrintFileNamesMonitored();
-  int x = 10;
-  std::vector<DirectoryMonitor> dirMoniObjects(x);
   DirectoryMonitor::TotalDirectories = FileInfo::CountMonitorDirecs();
   DirectoryMonitor::LoadMonitorDirecs();
+  std::vector<DirectoryMonitor> dirMoniObjects(DirectoryMonitor::TotalDirectories);
   int i = 0;
   for (std::string &s : DirectoryMonitor::monitorDirecs)
   {
-    DirectoryMonitor * d = new DirectoryMonitor;
+    DirectoryMonitor *d = new DirectoryMonitor;
     d->SetDirName(s);
     d->Createhandle();
     d->SetOverlap();
+    d->setNotifyBuffer();
     d->setDirDetails(FileInfo::dirIncludeTypeMap[s], FileInfo::dirExcludeTypeMap[s], FileInfo::dirPatternMap[s]);
-    dirMoniObjects[i++] = *d;
+    dirMoniObjects[i++] = (*d);
   }
   std::thread threadForMonitoring(DirectoryMonitor::CreateThreadForMonitoringDirectory, dirMoniObjects);
   std::cin.get();
